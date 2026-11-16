@@ -175,13 +175,13 @@ class BankSimulationTests(unittest.TestCase):
             if "is using manager" in line:
                 active_manager_users += 1
                 maximum_manager_users = max(maximum_manager_users, active_manager_users)
-            elif "is leaving manager" in line:
+            elif "is done using manager" in line:
                 active_manager_users -= 1
                 self.assertGreaterEqual(active_manager_users, 0)
 
         self.assertEqual(NUM_CUSTOMERS, sum("is going to manager" in line for line in lines))
         self.assertEqual(NUM_CUSTOMERS, sum("is using manager" in line for line in lines))
-        self.assertEqual(NUM_CUSTOMERS, sum("is leaving manager" in line for line in lines))
+        self.assertEqual(NUM_CUSTOMERS, sum("is done using manager" in line for line in lines))
         self.assertEqual(0, active_manager_users)
         self.assertEqual(1, maximum_manager_users)
 
@@ -194,13 +194,13 @@ class BankSimulationTests(unittest.TestCase):
             if "is using safe" in line:
                 active_safe_users += 1
                 maximum_safe_users = max(maximum_safe_users, active_safe_users)
-            elif "is leaving safe" in line:
+            elif "is done using safe" in line:
                 active_safe_users -= 1
                 self.assertGreaterEqual(active_safe_users, 0)
 
         self.assertEqual(NUM_CUSTOMERS, sum("is going to safe" in line for line in lines))
         self.assertEqual(NUM_CUSTOMERS, sum("is using safe" in line for line in lines))
-        self.assertEqual(NUM_CUSTOMERS, sum("is leaving safe" in line for line in lines))
+        self.assertEqual(NUM_CUSTOMERS, sum("is done using safe" in line for line in lines))
         self.assertEqual(0, active_safe_users)
         self.assertLessEqual(maximum_safe_users, 2)
 
@@ -298,7 +298,7 @@ class BankSimulationTests(unittest.TestCase):
         self.assertEqual(NUM_CUSTOMERS, sum("begins random wait" in line for line in lines))
         self.assertEqual(NUM_CUSTOMERS, sum("finishes random wait" in line for line in lines))
         self.assertEqual(NUM_CUSTOMERS, sum("is using safe" in line for line in lines))
-        self.assertEqual(NUM_CUSTOMERS, sum("is leaving safe" in line for line in lines))
+        self.assertEqual(NUM_CUSTOMERS, sum("is done using safe" in line for line in lines))
 
     def test_delay_ranges_and_output_format(self) -> None:
         lines = self.run_bank(MIXED)

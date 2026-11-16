@@ -152,7 +152,7 @@ class BankSimulation:
             )
             self.sleep_function(delay_ms / 1000)
             self.print_action(
-                f"Teller {teller_id} [Customer {customer_id}]: is leaving manager"
+                f"Teller {teller_id} [Customer {customer_id}]: is done using manager"
             )
 
     def use_safe(self, teller_id: int, customer_id: int) -> None:
@@ -168,7 +168,7 @@ class BankSimulation:
             )
             self.sleep_function(delay_ms / 1000)
             self.print_action(
-                f"Teller {teller_id} [Customer {customer_id}]: is leaving safe"
+                f"Teller {teller_id} [Customer {customer_id}]: is done using safe"
             )
 
     def customer(self, customer_id: int) -> None:
