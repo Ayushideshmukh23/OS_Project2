@@ -1,4 +1,4 @@
-"""Three-customer transaction milestone for the bank simulation."""
+"""Threaded bank simulation with three tellers and fifty customers."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from typing import Callable, Sequence, TextIO
 
 
 NUM_TELLERS = 3
-NUM_CUSTOMERS = 3
+NUM_CUSTOMERS = 50
 
 
 class BankSimulation:

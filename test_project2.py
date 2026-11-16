@@ -11,7 +11,10 @@ from project2 import BankSimulation, NUM_CUSTOMERS, NUM_TELLERS
 
 DEPOSIT = ["Deposit"] * NUM_CUSTOMERS
 WITHDRAWAL = ["Withdrawal"] * NUM_CUSTOMERS
-MIXED = ["Deposit", "Withdrawal", "Deposit"]
+MIXED = [
+    "Deposit" if customer_id % 2 == 0 else "Withdrawal"
+    for customer_id in range(NUM_CUSTOMERS)
+]
 
 
 class BankSimulationTests(unittest.TestCase):
