@@ -66,6 +66,8 @@ class BankSimulation:
         ]
         self.customer_left = [threading.Semaphore(0) for _ in range(NUM_TELLERS)]
         self.threads: list[threading.Thread] = []
+        self.teller_threads: list[threading.Thread] = []
+        self.customer_threads: list[threading.Thread] = []
 
     def print_action(self, message: str) -> None:
         """Print one complete line without another thread interrupting it."""
@@ -73,7 +75,7 @@ class BankSimulation:
             print(message, file=self.output, flush=True)
 
     def teller(self, teller_id: int) -> None:
-        """Serve one customer through introduction and transaction completion."""
+        """Repeatedly serve customers until the main thread signals shutdown."""
         with self.state_semaphore:
             self.available_tellers.append(teller_id)
             self.ready_teller_count += 1
@@ -86,13 +88,25 @@ class BankSimulation:
                 for _ in range(NUM_CUSTOMERS):
                     self.bank_open.release()
 
-        self.customer_arrived[teller_id].acquire()
-        with self.state_semaphore:
-            customer_id = self.assigned_customers[teller_id]
+        while True:
+            self.customer_arrived[teller_id].acquire()
+            with self.state_semaphore:
+                customer_id = self.assigned_customers[teller_id]
 
-        if customer_id is None:
-            raise RuntimeError(f"Teller {teller_id} has no assigned customer")
+            if customer_id is None:
+                self.print_action(f"Teller {teller_id}: stops working")
+                return
 
+            self.serve_customer(teller_id, customer_id)
+
+            with self.state_semaphore:
+                self.assigned_customers[teller_id] = None
+                self.teller_transactions[teller_id] = None
+                self.available_tellers.append(teller_id)
+            self.available_teller_count.release()
+
+    def serve_customer(self, teller_id: int, customer_id: int) -> None:
+        """Complete the full handshake for one assigned customer."""
         self.print_action(
             f"Teller {teller_id} [Customer {customer_id}]: acknowledges customer"
         )
@@ -175,6 +189,9 @@ class BankSimulation:
         self.bank_open.acquire()
 
         with self.door:
+            self.print_action(
+                f"Customer {customer_id}: is entering through the door"
+            )
             self.print_action(f"Customer {customer_id}: enters the bank")
 
         self.available_teller_count.acquire()
@@ -201,20 +218,39 @@ class BankSimulation:
         self.transaction_completed[teller_id].acquire()
         with self.door:
             self.print_action(
+                f"Customer {customer_id} [Teller {teller_id}]: "
+                "is leaving through the door"
+            )
+            self.print_action(
                 f"Customer {customer_id} [Teller {teller_id}]: leaves the bank"
             )
 
         self.customer_left[teller_id].release()
 
-    def run(self) -> None:
-        """Start and join every teller and customer thread."""
-        teller_threads = [
+    @staticmethod
+    def join_threads(
+        threads: Sequence[threading.Thread], deadline: float | None
+    ) -> None:
+        """Join every thread, optionally enforcing one shared deadline."""
+        for thread in threads:
+            if deadline is None:
+                thread.join()
+            else:
+                thread.join(max(0.0, deadline - time.monotonic()))
+
+        alive_threads = [thread.name for thread in threads if thread.is_alive()]
+        if alive_threads:
+            raise TimeoutError(f"Threads did not finish: {', '.join(alive_threads)}")
+
+    def run(self, timeout: float | None = None) -> None:
+        """Start all threads, close after customers leave, and join every thread."""
+        self.teller_threads = [
             threading.Thread(
                 target=self.teller, args=(teller_id,), name=f"Teller-{teller_id}"
             )
             for teller_id in range(NUM_TELLERS)
         ]
-        customer_threads = [
+        self.customer_threads = [
             threading.Thread(
                 target=self.customer,
                 args=(customer_id,),
@@ -222,17 +258,25 @@ class BankSimulation:
             )
             for customer_id in range(NUM_CUSTOMERS)
         ]
-        self.threads = teller_threads + customer_threads
+        self.threads = self.teller_threads + self.customer_threads
+        deadline = None if timeout is None else time.monotonic() + timeout
 
-        for thread in teller_threads:
+        for thread in self.teller_threads:
             thread.start()
-        for thread in customer_threads:
+        for thread in self.customer_threads:
             thread.start()
 
-        for thread in customer_threads:
-            thread.join()
-        for thread in teller_threads:
-            thread.join()
+        self.join_threads(self.customer_threads, deadline)
+
+        # None is safe as a shutdown sentinel because every customer has left.
+        with self.state_semaphore:
+            for teller_id in range(NUM_TELLERS):
+                self.assigned_customers[teller_id] = None
+        for teller_semaphore in self.customer_arrived:
+            teller_semaphore.release()
+
+        self.join_threads(self.teller_threads, deadline)
+        self.print_action("Teller 0: the bank is closed")
 
 
 def main() -> None:
